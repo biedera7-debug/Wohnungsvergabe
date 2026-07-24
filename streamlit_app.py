@@ -8,6 +8,95 @@ st.set_page_config(
     page_icon="🏠",
     layout="wide"
 )
+st.set_page_config(page_title="Wohnungsvergabe Cockpit", page_icon="🏠", layout="wide")
+
+# ---------------------------------------------------------
+# HILFSFUNKTION: LEERE / STAMMDATEN ERSTELLEN
+# ---------------------------------------------------------
+def get_empty_data():
+    """Erstellt leere Tabellen mit allen nötigen Spalten für die manuelle Eingabe."""
+    df_w = pd.DataFrame({
+        "Wohnungsnummer": ["Wohnung 1 EG Bestand", "Wohnung 2 1. OG"],
+        "Zimmer": [3, 2],
+        "Nutzfläche": [76.0, 49.32],
+        "Max_Personen": [4, 2]
+    })
+    
+    df_m = pd.DataFrame({
+        "Mieter-ID": ["M01", "M02"],
+        "Name": ["Familie Huber", "Anna Schmidt"],
+        "Personenanzahl": [4, 2],
+        "Empfehlung (Ja/Nein)": ["Ja", "Nein"],
+        "Anmeldedatum": ["2026-01-02", "2026-01-01"],
+        "1. Wahl": ["Wohnung 1 EG Bestand", "Wohnung 2 1. OG"],
+        "2. Wahl": ["Wohnung 2 1. OG", ""],
+        "3. Wahl": ["", ""],
+        "4. Wahl": ["", ""]
+    })
+    return df_w, df_m
+
+# ---------------------------------------------------------
+# SIDEBAR: EINGABE-METHODE WÄHLEN
+# ---------------------------------------------------------
+st.sidebar.header("📁 1. Datenbasis")
+
+input_mode = st.sidebar.radio(
+    "Wie möchtest du die Daten eingeben?",
+    ["Excel-Datei hochladen", "Manuell eingeben / Bearbeiten"]
+)
+
+if input_mode == "Excel-Datei hochladen":
+    uploaded_file = st.sidebar.file_uploader("Excel-Datei hochladen (.xlsx)", type=["xlsx"])
+    if uploaded_file is not None:
+        try:
+            df_w = pd.read_excel(uploaded_file, sheet_name="Wohnungsdaten")
+            df_m = pd.read_excel(uploaded_file, sheet_name="Mieterdaten")
+            st.sidebar.success("Excel-Datei geladen!")
+        except Exception as e:
+            st.sidebar.error("Fehler beim Lesen. Beispiel-Daten geladen.")
+            df_w, df_m = get_empty_data()
+    else:
+        df_w, df_m = get_empty_data()
+
+else:  # Manuelle Eingabe im Browser
+    st.sidebar.info("Bearbeite die Tabellen im Tab '📝 Manuelle Dateneingabe'.")
+    if "df_w" not in st.session_state or "df_m" not in st.session_state:
+        st.session_state.df_w, st.session_state.df_m = get_empty_data()
+    df_w, df_m = st.session_state.df_w, st.session_state.df_m
+
+
+# ---------------------------------------------------------
+# NEUER TAB FÜR MANUELLE EINGABE (falls ausgewählt)
+# ---------------------------------------------------------
+if input_mode == "Manuell eingeben / Bearbeiten":
+    st.header("📝 Manuelle Eingabe & Bearbeitung")
+    st.caption("Füge neue Zeilen hinzu (+-Button unten in den Tabellen) oder klicke in eine Zelle, um Werte direkt zu ändern.")
+    
+    col_e1, col_e2 = st.columns(2)
+    
+    with col_e1:
+        st.subheader("🏢 Wohnungsdaten")
+        df_w = st.data_editor(
+            df_w,
+            num_rows="dynamic",  # Erlaubt das Hinzufügen/Löschen von Zeilen
+            use_container_width=True,
+            key="editor_wohnungen"
+        )
+        st.session_state.df_w = df_w
+
+    with col_e2:
+        st.subheader("👥 Mieterdaten")
+        df_m = st.data_editor(
+            df_m,
+            num_rows="dynamic",  # Erlaubt das Hinzufügen/Löschen von Zeilen
+            use_container_width=True,
+            key="editor_mieter"
+        )
+        st.session_state.df_m = df_m
+
+    st.markdown("---")
+
+
 
 # ---------------------------------------------------------
 # HILFSFUNKTIONEN & ALGORITHMUS
