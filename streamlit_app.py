@@ -66,38 +66,53 @@ def get_default_data():
     return df_w, df_m
 
 def clean_column_names(df, df_type="wohnungen"):
-    """Harmonisiert Spaltennamen für flexible Dateneingaben."""
+    """Harmonisiert Spaltennamen für flexible Dateneingaben sehr robust."""
+    if df.empty:
+        return df
+        
     df = df.copy()
     col_map = {}
+    
     for col in df.columns:
-        c_lower = str(col).strip().lower()
+        c_str = str(col).strip().lower()
+        
         if df_type == "wohnungen":
-            if "wohnung" in c_lower or "id" in c_lower:
+            # Erkennt 'WOHNUNGSNUMMER', 'Wohnungs-ID', 'Wohnung', 'Top', 'ID'
+            if any(k in c_str for k in ["wohnung", "nummer", "top", "id"]):
                 col_map[col] = "Wohnungsnummer"
-            elif "zimmer" in c_lower:
+            elif "zimmer" in c_str:
                 col_map[col] = "Zimmer"
-            elif "max" in c_lower or "person" in c_lower:
+            elif "max" in c_str or "person" in c_str:
                 col_map[col] = "Max_Personen"
+                
         elif df_type == "mieter":
-            if "mieter" in c_lower and "id" in c_lower:
+            if "mieter" in c_str and "id" in c_str:
                 col_map[col] = "Mieter-ID"
-            elif "name" in c_lower:
+            elif "name" in c_str:
                 col_map[col] = "Name"
-            elif "person" in c_lower:
+            elif "person" in c_str:
                 col_map[col] = "Personenanzahl"
-            elif "empfehl" in c_lower:
+            elif "empfehl" in c_str:
                 col_map[col] = "Empfehlung (Ja/Nein)"
-            elif "anmeld" in c_lower or "datum" in c_lower:
+            elif "anmeld" in c_str or "datum" in c_str:
                 col_map[col] = "Anmeldedatum"
-            elif "1" in c_lower and "wahl" in c_lower:
+            elif "1" in c_str and "wahl" in c_str:
                 col_map[col] = "1. Wahl"
-            elif "2" in c_lower and "wahl" in c_lower:
+            elif "2" in c_str and "wahl" in c_str:
                 col_map[col] = "2. Wahl"
-            elif "3" in c_lower and "wahl" in c_lower:
+            elif "3" in c_str and "wahl" in c_str:
                 col_map[col] = "3. Wahl"
-            elif "4" in c_lower and "wahl" in c_lower:
+            elif "4" in c_str and "wahl" in c_str:
                 col_map[col] = "4. Wahl"
-    return df.rename(columns=col_map)
+                
+    df_renamed = df.rename(columns=col_map)
+    
+    # Fallback: Falls 'Wohnungsnummer' noch nicht existiert, nimm die erste Spalte
+    if df_type == "wohnungen" and "Wohnungsnummer" not in df_renamed.columns and len(df_renamed.columns) > 0:
+        first_col = df_renamed.columns[0]
+        df_renamed = df_renamed.rename(columns={first_col: "Wohnungsnummer"})
+        
+    return df_renamed
 
 def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
     """Berechnet die Zuordnung von Mietern zu Wohnungen basierend auf den Szenario-Faktoren."""
@@ -106,6 +121,9 @@ def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
         
     df_w_clean = clean_column_names(df_w, "wohnungen")
     df_m_clean = clean_column_names(df_m, "mieter")
+    
+    if "Wohnungsnummer" not in df_w_clean.columns:
+        return pd.DataFrame(), pd.DataFrame()
     
     # Anmeldedatum parsen
     if 'Anmeldedatum' in df_m_clean.columns:
@@ -225,14 +243,14 @@ st.sidebar.header("📁 1. Datenbasis")
 input_mode = st.sidebar.radio(
     "Datenquelle wählen:",
     ["Manuell eingeben / In der App bearbeiten", "Excel-Datei hochladen"],
-    index=0  # Manuelle Eingabe als Standard
+    index=0
 )
 
 if input_mode == "Excel-Datei hochladen":
     uploaded_file = st.sidebar.file_uploader(
         "Excel-Datei hochladen (.xlsx)", 
         type=["xlsx"], 
-        key="excel_uploader_sidebar"  # Eindeutiger Key zur Fehlerbehebung
+        key="excel_uploader_sidebar"
     )
     if uploaded_file is not None:
         try:
