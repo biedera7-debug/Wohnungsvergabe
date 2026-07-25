@@ -2,12 +2,66 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import io
+import zipfile
+import xml.etree.ElementTree as ET
 
 st.set_page_config(
     page_title="Wohnungsvergabe Cockpit",
     page_icon="🏠",
     layout="wide"
 )
+
+# ---------------------------------------------------------
+# PURE PYTHON EXCEL PARSER (KEIN OPENPYXL BENEOTIGT)
+# ---------------------------------------------------------
+
+def read_xlsx_without_openpyxl(uploaded_file):
+    """Liest .xlsx-Dateien mit Standard-Python (zipfile & xml) ohne openpyxl ein."""
+    file_bytes = uploaded_file.getvalue()
+    zip_buf = io.BytesIO(file_bytes)
+    
+    with zipfile.ZipFile(zip_buf, 'r') as z:
+        # 1. Shared Strings lesen (Texte in Excel)
+        shared_strings = []
+        if 'xl/sharedStrings.xml' in z.namelist():
+            tree = ET.fromstring(z.read('xl/sharedStrings.xml'))
+            for elem in tree.findall('{*}si'):
+                text = "".join([t.text for t in elem.findall('.//{*}t') if t.text])
+                shared_strings.append(text)
+                
+        # 2. Sheets ermitteln
+        sheets_data = {}
+        sheet_files = sorted([f for f in z.namelist() if f.startswith('xl/worksheets/sheet')])
+        
+        for idx, sheet_file in enumerate(sheet_files):
+            tree = ET.fromstring(z.read(sheet_file))
+            rows = []
+            for r in tree.findall('{*}sheetData/{*}row'):
+                row_vals = []
+                for c in r.findall('{*}c'):
+                    v = c.find('{*}v')
+                    t = c.attrib.get('t')
+                    val = v.text if v is not None else ""
+                    
+                    if t == 's' and val.isdigit():  # Shared String Index
+                        s_idx = int(val)
+                        val = shared_strings[s_idx] if s_idx < len(shared_strings) else val
+                    row_vals.append(val)
+                if row_vals:
+                    rows.append(row_vals)
+            
+            if rows:
+                header = rows[0]
+                data = rows[1:]
+                # Maximal-Spaltenbreite angleichen
+                max_cols = max(len(r) for r in rows)
+                header += [f"Col_{i}" for i in range(len(header), max_cols)]
+                padded_data = [r + [""] * (max_cols - len(r)) for r in data]
+                
+                df = pd.DataFrame(padded_data, columns=header)
+                sheets_data[f"Sheet_{idx+1}"] = df
+
+    return sheets_data
 
 # ---------------------------------------------------------
 # HILFSFUNKTIONEN & STANDARDS
@@ -123,7 +177,6 @@ def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
     if "Wohnungsnummer" not in df_w_clean.columns:
         return pd.DataFrame(), pd.DataFrame()
     
-    # Anmeldedatum parsen
     if 'Anmeldedatum' in df_m_clean.columns:
         df_m_clean['Anmeldedatum_dt'] = pd.to_datetime(df_m_clean['Anmeldedatum'], errors='coerce')
     else:
@@ -242,33 +295,34 @@ if input_mode == "Datei hochladen (.xlsx oder .csv)":
     )
     if uploaded_file is not None:
         try:
-            # Falls CSV hochgeladen wurde
             if uploaded_file.name.endswith(".csv"):
                 df_uploaded = pd.read_csv(uploaded_file, sep=None, engine='python')
                 st.session_state.df_m = df_uploaded
                 st.sidebar.success("CSV-Mieterdatei erfolgreich geladen!")
             else:
-                # Sicherer Excel-Import mit Fallback
+                # Versuch 1: Standard Pandas read_excel
                 try:
                     xls = pd.ExcelFile(uploaded_file)
                     sheet_names = xls.sheet_names
+                    sheet_w = next((s for s in sheet_names if "wohnung" in s.lower()), sheet_names[0] if len(sheet_names)>=1 else None)
+                    sheet_m = next((s for s in sheet_names if "mieter" in s.lower() or "bewerber" in s.lower()), sheet_names[1] if len(sheet_names)>=2 else None)
                     
-                    sheet_w = next((s for s in sheet_names if "wohnung" in s.lower()), None)
-                    sheet_m = next((s for s in sheet_names if "mieter" in s.lower() or "bewerber" in s.lower()), None)
-                    
-                    if sheet_w is None and len(sheet_names) >= 1:
-                        sheet_w = sheet_names[0]
-                    if sheet_m is None and len(sheet_names) >= 2:
-                        sheet_m = sheet_names[1]
-                        
                     if sheet_w and sheet_m:
                         st.session_state.df_w = pd.read_excel(uploaded_file, sheet_name=sheet_w)
                         st.session_state.df_m = pd.read_excel(uploaded_file, sheet_name=sheet_m)
                         st.sidebar.success(f"Erfolgreich geladen aus Sheets '{sheet_w}' & '{sheet_m}'!")
-                    else:
-                        st.sidebar.error("Die Excel-Datei muss mindestens 2 Tabellenblätter enthalten.")
-                except ImportError:
-                    st.sidebar.warning("⚠️ Excel-Einlesen benötigt 'openpyxl' auf dem Server. Bitte lade stattdessen eine CSV-Datei hoch oder nutze die manuelle Eingabe.")
+                except Exception:
+                    # Versuch 2: Pure Python XML Parser (Kein openpyxl nötig)
+                    sheets = read_xlsx_without_openpyxl(uploaded_file)
+                    keys = list(sheets.keys())
+                    if len(keys) >= 2:
+                        st.session_state.df_w = sheets[keys[0]]
+                        st.session_state.df_m = sheets[keys[1]]
+                        st.sidebar.success("Excel-Datei direkt ohne openpyxl eingelesen!")
+                    elif len(keys) == 1:
+                        st.session_state.df_m = sheets[keys[0]]
+                        st.sidebar.success("Excel-Tabelle eingelesen!")
+                        
         except Exception as e:
             st.sidebar.error(f"Fehler beim Einlesen: {e}")
 
@@ -444,7 +498,7 @@ with tab3:
         st.dataframe(df_comp, use_container_width=True, hide_index=True)
 
 # ---------------------------------------------------------
-# TAB 4: GESAMTÜBERSICHT & EXPORT (GARANTIERT ABSTURZSICHER)
+# TAB 4: GESAMTÜBERSICHT & EXPORT
 # ---------------------------------------------------------
 with tab4:
     st.subheader("📄 Vollständige Vergabe-Liste & Export")
@@ -469,32 +523,13 @@ with tab4:
             hide_index=True
         )
         
-        # GARANTIERT ABSTURZSICHERER DOWNLOAD (CSV & Excel)
         csv_data = full_overview.to_csv(index=False, sep=";").encode('utf-8-sig')
         
-        col_dl1, col_dl2 = st.columns(2)
-        with col_dl1:
-            st.download_button(
-                label="📥 Vergabeliste als CSV herunterladen (.csv)",
-                data=csv_data,
-                file_name=f"Wohnungsvergabe_{szenario_preset}.csv",
-                mime="text/csv"
-            )
-            
-        with col_dl2:
-            try:
-                buffer = io.BytesIO()
-                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                    full_overview.to_excel(writer, sheet_name='Vergabe_Ergebnis', index=False)
-                    df_matches.to_excel(writer, sheet_name='Zuweisungen_Detail', index=False)
-                    
-                st.download_button(
-                    label="📥 Vergabeliste als Excel herunterladen (.xlsx)",
-                    data=buffer.getvalue(),
-                    file_name=f"Wohnungsvergabe_{szenario_preset}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            except Exception:
-                st.caption("ℹ️ Excel-Export-Paket auf Server nicht aktiv – bitte den CSV-Button links nutzen.")
+        st.download_button(
+            label="📥 Vergabeliste herunterladen (.csv)",
+            data=csv_data,
+            file_name=f"Wohnungsvergabe_{szenario_preset}.csv",
+            mime="text/csv"
+        )
     else:
         st.info("Keine aktiven Zuweisungen berechnet.")
