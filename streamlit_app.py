@@ -106,7 +106,6 @@ def clean_column_names(df, df_type="wohnungen"):
                 
     df_renamed = df.rename(columns=col_map)
     
-    # Fallback: Falls 'Wohnungsnummer' noch nicht existiert, nimm die erste Spalte
     if df_type == "wohnungen" and "Wohnungsnummer" not in df_renamed.columns and len(df_renamed.columns) > 0:
         first_col = df_renamed.columns[0]
         df_renamed = df_renamed.rename(columns={first_col: "Wohnungsnummer"})
@@ -135,19 +134,15 @@ def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
     date_range = (max_date - min_date).days if pd.notna(max_date) and pd.notna(min_date) and max_date != min_date else 1
     
     candidates = []
-    
-    # Präferenzen auswerten (1. bis 4. Wahl)
     pref_cols = [c for c in ['1. Wahl', '2. Wahl', '3. Wahl', '4. Wahl'] if c in df_m_clean.columns]
     
     for idx, m in df_m_clean.iterrows():
         m_id = m.get('Mieter-ID', f"M{idx+1:02d}")
         m_name = m.get('Name', f"Bewerber {idx+1}")
         
-        # Empfehlungs-Score
         empf_val = str(m.get('Empfehlung (Ja/Nein)', '')).strip().lower()
         score_empf = 100 if empf_val in ['ja', 'true', '1'] else 0
         
-        # Anmelde-Score
         if pd.notna(m['Anmeldedatum_dt']):
             days_diff = (max_date - m['Anmeldedatum_dt']).days
             score_anm = (days_diff / date_range) * 100
@@ -161,13 +156,11 @@ def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
                 
             w_id_str = str(w_id).strip()
             
-            # Suche nach passender Wohnung
             w_match = df_w_clean[df_w_clean['Wohnungsnummer'].astype(str).str.strip() == w_id_str]
             if w_match.empty:
                 continue
             w_info = w_match.iloc[0]
             
-            # Passform
             max_p = w_info.get('Max_Personen', w_info.get('Zimmer', 2))
             try:
                 pers = float(m.get('Personenanzahl', 1))
@@ -176,11 +169,8 @@ def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
                 
             diff = abs(float(max_p) - pers)
             score_pass = max(0, 100 - (diff * 30))
-            
-            # Prioritäts-Bonus
             score_prio = 100 if rank_idx == 1 else (75 if rank_idx == 2 else (50 if rank_idx == 3 else 25))
             
-            # Gesamter gewichteter Score
             total_score = (
                 (score_empf * w_empf) +
                 (score_pass * w_pass) +
@@ -203,7 +193,6 @@ def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
     if df_cand.empty:
         return pd.DataFrame(), pd.DataFrame()
         
-    # Zuordnung (Deferred Acceptance / Maximum Score Matching)
     df_cand_sorted = df_cand.sort_values(by=['Score', 'Wunsch_Rang'], ascending=[False, True])
     
     assigned_tenants = set()
@@ -236,42 +225,52 @@ if "df_w" not in st.session_state or "df_m" not in st.session_state:
 st.title("🏠 Wohnungsvergabe – Interaktives Szenario-Cockpit")
 st.markdown("Vergleiche Kriterien, verwalte Wohnungen & Mieter und simuliere die optimale Vergabe.")
 
-# SIDEBAR: DATEN-QUELLE (MANUELLE EINGABE AN ERSTER STELLE)
+# SIDEBAR: DATEN-QUELLE
 st.sidebar.header("📁 1. Datenbasis")
 
 input_mode = st.sidebar.radio(
     "Datenquelle wählen:",
-    ["Manuell eingeben / In der App bearbeiten", "Excel-Datei hochladen"],
+    ["Manuell eingeben / In der App bearbeiten", "Datei hochladen (.xlsx oder .csv)"],
     index=0
 )
 
-if input_mode == "Excel-Datei hochladen":
+if input_mode == "Datei hochladen (.xlsx oder .csv)":
     uploaded_file = st.sidebar.file_uploader(
-        "Excel-Datei hochladen (.xlsx)", 
-        type=["xlsx"], 
+        "Datei hochladen (.xlsx / .csv)", 
+        type=["xlsx", "csv"], 
         key="excel_uploader_sidebar"
     )
     if uploaded_file is not None:
         try:
-            xls = pd.ExcelFile(uploaded_file)
-            sheet_names = xls.sheet_names
-            
-            sheet_w = next((s for s in sheet_names if "wohnung" in s.lower()), None)
-            sheet_m = next((s for s in sheet_names if "mieter" in s.lower() or "bewerber" in s.lower()), None)
-            
-            if sheet_w is None and len(sheet_names) >= 1:
-                sheet_w = sheet_names[0]
-            if sheet_m is None and len(sheet_names) >= 2:
-                sheet_m = sheet_names[1]
-                
-            if sheet_w and sheet_m:
-                st.session_state.df_w = pd.read_excel(uploaded_file, sheet_name=sheet_w)
-                st.session_state.df_m = pd.read_excel(uploaded_file, sheet_name=sheet_m)
-                st.sidebar.success(f"Erfolgreich geladen aus Sheets '{sheet_w}' & '{sheet_m}'!")
+            # Falls CSV hochgeladen wurde
+            if uploaded_file.name.endswith(".csv"):
+                df_uploaded = pd.read_csv(uploaded_file, sep=None, engine='python')
+                st.session_state.df_m = df_uploaded
+                st.sidebar.success("CSV-Mieterdatei erfolgreich geladen!")
             else:
-                st.sidebar.error("Die Excel-Datei muss mindestens 2 Tabellenblätter enthalten.")
+                # Sicherer Excel-Import mit Fallback
+                try:
+                    xls = pd.ExcelFile(uploaded_file)
+                    sheet_names = xls.sheet_names
+                    
+                    sheet_w = next((s for s in sheet_names if "wohnung" in s.lower()), None)
+                    sheet_m = next((s for s in sheet_names if "mieter" in s.lower() or "bewerber" in s.lower()), None)
+                    
+                    if sheet_w is None and len(sheet_names) >= 1:
+                        sheet_w = sheet_names[0]
+                    if sheet_m is None and len(sheet_names) >= 2:
+                        sheet_m = sheet_names[1]
+                        
+                    if sheet_w and sheet_m:
+                        st.session_state.df_w = pd.read_excel(uploaded_file, sheet_name=sheet_w)
+                        st.session_state.df_m = pd.read_excel(uploaded_file, sheet_name=sheet_m)
+                        st.sidebar.success(f"Erfolgreich geladen aus Sheets '{sheet_w}' & '{sheet_m}'!")
+                    else:
+                        st.sidebar.error("Die Excel-Datei muss mindestens 2 Tabellenblätter enthalten.")
+                except ImportError:
+                    st.sidebar.warning("⚠️ Excel-Einlesen benötigt 'openpyxl' auf dem Server. Bitte lade stattdessen eine CSV-Datei hoch oder nutze die manuelle Eingabe.")
         except Exception as e:
-            st.sidebar.error(f"Fehler beim Einlesen der Excel-Datei: {e}")
+            st.sidebar.error(f"Fehler beim Einlesen: {e}")
 
 st.sidebar.markdown("---")
 st.sidebar.header("⚙️ 2. Szenario-Gewichtung")
@@ -296,7 +295,6 @@ w_pass = st.sidebar.slider("2. Passgenauigkeit (Belegung)", 0.0, 1.0, w_p, 0.05)
 w_anm = st.sidebar.slider("3. Frühe Anmeldung", 0.0, 1.0, w_a, 0.05)
 w_prio = st.sidebar.slider("4. Erstwunsch-Bonus", 0.0, 1.0, w_r, 0.05)
 
-# Normalisieren
 total_w = w_empf + w_pass + w_anm + w_prio
 if total_w > 0:
     w_empf, w_pass, w_anm, w_prio = w_empf/total_w, w_pass/total_w, w_anm/total_w, w_prio/total_w
@@ -446,7 +444,7 @@ with tab3:
         st.dataframe(df_comp, use_container_width=True, hide_index=True)
 
 # ---------------------------------------------------------
-# TAB 4: GESAMTÜBERSICHT & EXPORT (MIT SICHEREM FALLBACK)
+# TAB 4: GESAMTÜBERSICHT & EXPORT (GARANTIERT ABSTURZSICHER)
 # ---------------------------------------------------------
 with tab4:
     st.subheader("📄 Vollständige Vergabe-Liste & Export")
@@ -471,26 +469,32 @@ with tab4:
             hide_index=True
         )
         
-        # SICHERS HERUNTERLADEN MIT FALLBACK
-        try:
-            buffer = io.BytesIO()
-            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                full_overview.to_excel(writer, sheet_name='Vergabe_Ergebnis', index=False)
-                df_matches.to_excel(writer, sheet_name='Zuweisungen_Detail', index=False)
-                
-            st.download_button(
-                label="📥 Vergabeliste als Excel herunterladen (.xlsx)",
-                data=buffer.getvalue(),
-                file_name=f"Wohnungsvergabe_Ergebnis_{szenario_preset}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        except Exception:
-            csv_data = full_overview.to_csv(index=False, sep=";").encode('utf-8-sig')
+        # GARANTIERT ABSTURZSICHERER DOWNLOAD (CSV & Excel)
+        csv_data = full_overview.to_csv(index=False, sep=";").encode('utf-8-sig')
+        
+        col_dl1, col_dl2 = st.columns(2)
+        with col_dl1:
             st.download_button(
                 label="📥 Vergabeliste als CSV herunterladen (.csv)",
                 data=csv_data,
-                file_name=f"Wohnungsvergabe_Ergebnis_{szenario_preset}.csv",
+                file_name=f"Wohnungsvergabe_{szenario_preset}.csv",
                 mime="text/csv"
             )
+            
+        with col_dl2:
+            try:
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    full_overview.to_excel(writer, sheet_name='Vergabe_Ergebnis', index=False)
+                    df_matches.to_excel(writer, sheet_name='Zuweisungen_Detail', index=False)
+                    
+                st.download_button(
+                    label="📥 Vergabeliste als Excel herunterladen (.xlsx)",
+                    data=buffer.getvalue(),
+                    file_name=f"Wohnungsvergabe_{szenario_preset}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            except Exception:
+                st.caption("ℹ️ Excel-Export-Paket auf Server nicht aktiv – bitte den CSV-Button links nutzen.")
     else:
         st.info("Keine aktiven Zuweisungen berechnet.")
