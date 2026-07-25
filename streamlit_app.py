@@ -453,17 +453,27 @@ with tab4:
             use_container_width=True,
             hide_index=True
         )
-        
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            full_overview.to_excel(writer, sheet_name='Vergabe_Ergebnis', index=False)
-            df_matches.to_excel(writer, sheet_name='Zuweisungen_Detail', index=False)
-            
-        st.download_button(
-            label="📥 Vergabeliste als Excel herunterladen",
-            data=buffer.getvalue(),
-            file_name=f"Wohnungsvergabe_Ergebnis_{szenario_preset}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        # EXPORT-OPTION: CSV & EXCEL (Sicherer Fallback)
+        try:
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                full_overview.to_excel(writer, sheet_name='Vergabe_Ergebnis', index=False)
+                df_matches.to_excel(writer, sheet_name='Zuweisungen_Detail', index=False)
+                
+            st.download_button(
+                label="📥 Vergabeliste als Excel herunterladen (.xlsx)",
+                data=buffer.getvalue(),
+                file_name=f"Wohnungsvergabe_Ergebnis_{szenario_preset}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        except Exception:
+            # Fallback auf CSV, falls openpyxl auf dem Server blockiert ist
+            csv_data = full_overview.to_csv(index=False, sep=";").encode('utf-8-sig')
+            st.download_button(
+                label="📥 Vergabeliste als CSV herunterladen (.csv)",
+                data=csv_data,
+                file_name=f"Wohnungsvergabe_Ergebnis_{szenario_preset}.csv",
+                mime="text/csv"
+            )
     else:
         st.info("Keine aktiven Zuweisungen berechnet.")
