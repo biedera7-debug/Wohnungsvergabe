@@ -67,8 +67,8 @@ def get_default_data():
 
 def clean_column_names(df, df_type="wohnungen"):
     """Harmonisiert Spaltennamen für flexible Dateneingaben sehr robust."""
-    if df.empty:
-        return df
+    if df is None or df.empty:
+        return pd.DataFrame()
         
     df = df.copy()
     col_map = {}
@@ -77,7 +77,6 @@ def clean_column_names(df, df_type="wohnungen"):
         c_str = str(col).strip().lower()
         
         if df_type == "wohnungen":
-            # Erkennt 'WOHNUNGSNUMMER', 'Wohnungs-ID', 'Wohnung', 'Top', 'ID'
             if any(k in c_str for k in ["wohnung", "nummer", "top", "id"]):
                 col_map[col] = "Wohnungsnummer"
             elif "zimmer" in c_str:
@@ -116,7 +115,7 @@ def clean_column_names(df, df_type="wohnungen"):
 
 def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
     """Berechnet die Zuordnung von Mietern zu Wohnungen basierend auf den Szenario-Faktoren."""
-    if df_w.empty or df_m.empty:
+    if df_w is None or df_m is None or df_w.empty or df_m.empty:
         return pd.DataFrame(), pd.DataFrame()
         
     df_w_clean = clean_column_names(df_w, "wohnungen")
@@ -254,11 +253,25 @@ if input_mode == "Excel-Datei hochladen":
     )
     if uploaded_file is not None:
         try:
-            st.session_state.df_w = pd.read_excel(uploaded_file, sheet_name="Wohnungsdaten")
-            st.session_state.df_m = pd.read_excel(uploaded_file, sheet_name="Mieterdaten")
-            st.sidebar.success("Excel-Datei erfolgreich geladen!")
+            xls = pd.ExcelFile(uploaded_file)
+            sheet_names = xls.sheet_names
+            
+            sheet_w = next((s for s in sheet_names if "wohnung" in s.lower()), None)
+            sheet_m = next((s for s in sheet_names if "mieter" in s.lower() or "bewerber" in s.lower()), None)
+            
+            if sheet_w is None and len(sheet_names) >= 1:
+                sheet_w = sheet_names[0]
+            if sheet_m is None and len(sheet_names) >= 2:
+                sheet_m = sheet_names[1]
+                
+            if sheet_w and sheet_m:
+                st.session_state.df_w = pd.read_excel(uploaded_file, sheet_name=sheet_w)
+                st.session_state.df_m = pd.read_excel(uploaded_file, sheet_name=sheet_m)
+                st.sidebar.success(f"Erfolgreich geladen aus Sheets '{sheet_w}' & '{sheet_m}'!")
+            else:
+                st.sidebar.error("Die Excel-Datei muss mindestens 2 Tabellenblätter enthalten.")
         except Exception as e:
-            st.sidebar.error("Fehler beim Lesen der Sheets 'Wohnungsdaten' & 'Mieterdaten'.")
+            st.sidebar.error(f"Fehler beim Einlesen der Excel-Datei: {e}")
 
 st.sidebar.markdown("---")
 st.sidebar.header("⚙️ 2. Szenario-Gewichtung")
@@ -296,10 +309,10 @@ df_matches, df_cand = calculate_matching(df_w_active, df_m_active, w_empf, w_pas
 
 # KPI SPALTE
 col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
-col_kpi1.metric("Anzahl Wohnungen", len(df_w_active))
-col_kpi2.metric("Anzahl Bewerber", len(df_m_active))
+col_kpi1.metric("Anzahl Wohnungen", len(df_w_active) if df_w_active is not None else 0)
+col_kpi2.metric("Anzahl Bewerber", len(df_m_active) if df_m_active is not None else 0)
 col_kpi3.metric("Vergebene Wohnungen", len(df_matches))
-col_kpi4.metric("Offene Bewerber", max(0, len(df_m_active) - len(df_matches)))
+col_kpi4.metric("Offene Bewerber", max(0, (len(df_m_active) if df_m_active is not None else 0) - len(df_matches)))
 
 st.markdown("---")
 
@@ -322,40 +335,43 @@ with tab1:
     
     df_w_clean = clean_column_names(df_w_active, "wohnungen")
     
-    for _, w in df_w_clean.iterrows():
-        w_id = str(w.get('Wohnungsnummer', 'Unbekannt')).strip()
-        
-        if search_term and search_term.lower() not in w_id.lower():
-            continue
+    if not df_w_clean.empty:
+        for _, w in df_w_clean.iterrows():
+            w_id = str(w.get('Wohnungsnummer', 'Unbekannt')).strip()
             
-        match_info = df_matches[df_matches['Wohnungs_ID'] == w_id] if not df_matches.empty else pd.DataFrame()
-        
-        with st.expander(f"🏠 **{w_id}** (Zimmer: {w.get('Zimmer', '-')})", expanded=True):
-            if not match_info.empty:
-                m_curr = match_info.iloc[0]
-                col_m1, col_m2, col_m3, col_m4 = st.columns([3, 2, 2, 2])
-                col_m1.markdown(f"✅ **Zugewiesener Mieter:** `{m_curr['Name']}` ({m_curr['Mieter_ID']})")
-                col_m2.markdown(f"⭐ **Gesamt-Score:** `{m_curr['Score']} Pkt`")
-                col_m3.markdown(f"🎯 **Wunsch-Rang:** `{m_curr['Wunsch_Rang']}. Wahl`")
-                col_m4.markdown(f"👍 **Empfehlung:** `{'Ja' if m_curr['Score_Empf'] == 100 else 'Nein'}`")
-            else:
-                st.warning("⚠️ **Status:** Noch keine Vergabe / Keine passenden Interessenten.")
+            if search_term and search_term.lower() not in w_id.lower():
+                continue
+                
+            match_info = df_matches[df_matches['Wohnungs_ID'] == w_id] if not df_matches.empty else pd.DataFrame()
             
-            if not df_cand.empty:
-                other_cands = df_cand[df_cand['Wohnungs_ID'] == w_id].sort_values(by='Score', ascending=False)
-                if len(other_cands) > 1:
-                    st.markdown("**Weitere Bewerber für diese Wohnung:**")
-                    st.dataframe(
-                        other_cands[['Name', 'Wunsch_Rang', 'Score', 'Score_Empf', 'Score_Pass', 'Score_Anm']]
-                        .rename(columns={
-                            'Wunsch_Rang': 'Wahl-Rang',
-                            'Score_Empf': 'Empfehlung-Pkt',
-                            'Score_Pass': 'Passform-Pkt',
-                            'Score_Anm': 'Anmelde-Pkt'
-                        }),
-                        hide_index=True,
-                        use_container_width=True
-                    )
+            with st.expander(f"🏠 **{w_id}** (Zimmer: {w.get('Zimmer', '-')})", expanded=True):
+                if not match_info.empty:
+                    m_curr = match_info.iloc[0]
+                    col_m1, col_m2, col_m3, col_m4 = st.columns([3, 2, 2, 2])
+                    col_m1.markdown(f"✅ **Zugewiesener Mieter:** `{m_curr['Name']}` ({m_curr['Mieter_ID']})")
+                    col_m2.markdown(f"⭐ **Gesamt-Score:** `{m_curr['Score']} Pkt`")
+                    col_m3.markdown(f"🎯 **Wunsch-Rang:** `{m_curr['Wunsch_Rang']}. Wahl`")
+                    col_m4.markdown(f"👍 **Empfehlung:** `{'Ja' if m_curr['Score_Empf'] == 100 else 'Nein'}`")
+                else:
+                    st.warning("⚠️ **Status:** Noch keine Vergabe / Keine passenden Interessenten.")
+                
+                if not df_cand.empty:
+                    other_cands = df_cand[df_cand['Wohnungs_ID'] == w_id].sort_values(by='Score', ascending=False)
+                    if len(other_cands) > 1:
+                        st.markdown("**Weitere Bewerber für diese Wohnung:**")
+                        st.dataframe(
+                            other_cands[['Name', 'Wunsch_Rang', 'Score', 'Score_Empf', 'Score_Pass', 'Score_Anm']]
+                            .rename(columns={
+                                'Wunsch_Rang': 'Wahl-Rang',
+                                'Score_Empf': 'Empfehlung-Pkt',
+                                'Score_Pass': 'Passform-Pkt',
+                                'Score_Anm': 'Anmelde-Pkt'
+                            }),
+                            hide_index=True,
+                            use_container_width=True
+                        )
+    else:
+        st.info("Keine Wohnungsdaten geladen.")
 
 # ---------------------------------------------------------
 # TAB 2: DATENEINGABE / BEARBEITEN
@@ -410,26 +426,27 @@ with tab3:
     comparison = []
     df_w_clean = clean_column_names(df_w_active, "wohnungen")
     
-    for _, w in df_w_clean.iterrows():
-        w_id = str(w.get('Wohnungsnummer', 'Unbekannt')).strip()
-        mA = df_matches[df_matches['Wohnungs_ID'] == w_id]['Name'].values if not df_matches.empty else []
-        mB = df_matches_b[df_matches_b['Wohnungs_ID'] == w_id]['Name'].values if not df_matches_b.empty else []
-        
-        nameA = mA[0] if len(mA) > 0 else "— Nicht vergeben —"
-        nameB = mB[0] if len(mB) > 0 else "— Nicht vergeben —"
-        
-        comparison.append({
-            "Wohnung": w_id,
-            f"Mieter in Szenario A ({szenario_preset})": nameA,
-            f"Mieter in Szenario B ({szenario_b})": nameB,
-            "Veränderung": "🔴 Abweichend" if nameA != nameB else "🟢 Identisch"
-        })
-        
-    df_comp = pd.DataFrame(comparison)
-    st.dataframe(df_comp, use_container_width=True, hide_index=True)
+    if not df_w_clean.empty:
+        for _, w in df_w_clean.iterrows():
+            w_id = str(w.get('Wohnungsnummer', 'Unbekannt')).strip()
+            mA = df_matches[df_matches['Wohnungs_ID'] == w_id]['Name'].values if not df_matches.empty else []
+            mB = df_matches_b[df_matches_b['Wohnungs_ID'] == w_id]['Name'].values if not df_matches_b.empty else []
+            
+            nameA = mA[0] if len(mA) > 0 else "— Nicht vergeben —"
+            nameB = mB[0] if len(mB) > 0 else "— Nicht vergeben —"
+            
+            comparison.append({
+                "Wohnung": w_id,
+                f"Mieter in Szenario A ({szenario_preset})": nameA,
+                f"Mieter in Szenario B ({szenario_b})": nameB,
+                "Veränderung": "🔴 Abweichend" if nameA != nameB else "🟢 Identisch"
+            })
+            
+        df_comp = pd.DataFrame(comparison)
+        st.dataframe(df_comp, use_container_width=True, hide_index=True)
 
 # ---------------------------------------------------------
-# TAB 4: GESAMTÜBERSICHT & EXPORT
+# TAB 4: GESAMTÜBERSICHT & EXPORT (MIT SICHEREM FALLBACK)
 # ---------------------------------------------------------
 with tab4:
     st.subheader("📄 Vollständige Vergabe-Liste & Export")
@@ -453,7 +470,8 @@ with tab4:
             use_container_width=True,
             hide_index=True
         )
-        # EXPORT-OPTION: CSV & EXCEL (Sicherer Fallback)
+        
+        # SICHERS HERUNTERLADEN MIT FALLBACK
         try:
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
@@ -467,7 +485,6 @@ with tab4:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         except Exception:
-            # Fallback auf CSV, falls openpyxl auf dem Server blockiert ist
             csv_data = full_overview.to_csv(index=False, sep=";").encode('utf-8-sig')
             st.download_button(
                 label="📥 Vergabeliste als CSV herunterladen (.csv)",
