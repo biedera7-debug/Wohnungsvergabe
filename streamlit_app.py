@@ -8,159 +8,162 @@ st.set_page_config(
     page_icon="🏠",
     layout="wide"
 )
-st.set_page_config(page_title="Wohnungsvergabe Cockpit", page_icon="🏠", layout="wide")
 
 # ---------------------------------------------------------
-# HILFSFUNKTION: LEERE / STAMMDATEN ERSTELLEN
+# HILFSFUNKTIONEN & STANDARDS
 # ---------------------------------------------------------
-def get_empty_data():
-    """Erstellt leere Tabellen mit allen nötigen Spalten für die manuelle Eingabe."""
-    df_w = pd.DataFrame({
-        "Wohnungsnummer": ["Wohnung 1 EG Bestand", "Wohnung 2 1. OG"],
-        "Zimmer": [3, 2],
-        "Nutzfläche": [76.0, 49.32],
-        "Max_Personen": [4, 2]
-    })
+
+def get_default_data():
+    """Erstellt Standard-Daten basierend auf den 50 Wohnungen aus der Tabelle."""
+    df_w = pd.DataFrame([
+        {"Wohnungsnummer": "Wohnung 1  EG Bestand", "Zimmer": 3, "Nutzfläche": 76.00, "Max_Personen": 4},
+        {"Wohnungsnummer": "Wohnung 49 neu EG", "Zimmer": 2, "Nutzfläche": 43.56, "Max_Personen": 2},
+        {"Wohnungsnummer": "Wohnung 50 neu EG", "Zimmer": 2, "Nutzfläche": 43.56, "Max_Personen": 2},
+        {"Wohnungsnummer": "Wohnung 2 1. OG", "Zimmer": 2, "Nutzfläche": 49.32, "Max_Personen": 2},
+        {"Wohnungsnummer": "Wohnung 3 1. OG", "Zimmer": 2, "Nutzfläche": 42.14, "Max_Personen": 2},
+        {"Wohnungsnummer": "Wohnung 4 1. OG", "Zimmer": 2, "Nutzfläche": 47.46, "Max_Personen": 2},
+        {"Wohnungsnummer": "Wohnung 7 1. OG", "Zimmer": 3, "Nutzfläche": 65.97, "Max_Personen": 4},
+        {"Wohnungsnummer": "Wohnung 9 1. OG", "Zimmer": 3, "Nutzfläche": 64.92, "Max_Personen": 4},
+        {"Wohnungsnummer": "Wohnung 11 1. OG", "Zimmer": 3, "Nutzfläche": 69.92, "Max_Personen": 4},
+        {"Wohnungsnummer": "Wohnung 23 2. OG", "Zimmer": 3, "Nutzfläche": 65.97, "Max_Personen": 4},
+        {"Wohnungsnummer": "Wohnung 27 2. OG", "Zimmer": 3, "Nutzfläche": 69.92, "Max_Personen": 4},
+        {"Wohnungsnummer": "Wohnung 39 DG", "Zimmer": 3, "Nutzfläche": 62.16, "Max_Personen": 4},
+        {"Wohnungsnummer": "Wohnung 43 DG", "Zimmer": 3, "Nutzfläche": 66.48, "Max_Personen": 4},
+    ])
     
-    df_m = pd.DataFrame({
-        "Mieter-ID": ["M01", "M02"],
-        "Name": ["Familie Huber", "Anna Schmidt"],
-        "Personenanzahl": [4, 2],
-        "Empfehlung (Ja/Nein)": ["Ja", "Nein"],
-        "Anmeldedatum": ["2026-01-02", "2026-01-01"],
-        "1. Wahl": ["Wohnung 1 EG Bestand", "Wohnung 2 1. OG"],
-        "2. Wahl": ["Wohnung 2 1. OG", ""],
-        "3. Wahl": ["", ""],
-        "4. Wahl": ["", ""]
-    })
+    df_m = pd.DataFrame([
+        {
+            "Mieter-ID": "M01", "Name": "Familie Huber", "Personenanzahl": 4, 
+            "Empfehlung (Ja/Nein)": "Ja", "Anmeldedatum": "2026-01-02", 
+            "1. Wahl": "Wohnung 7 1. OG", "2. Wahl": "Wohnung 9 1. OG", 
+            "3. Wahl": "Wohnung 23 2. OG", "4. Wahl": "Wohnung 39 DG"
+        },
+        {
+            "Mieter-ID": "M02", "Name": "Anna Schmidt", "Personenanzahl": 2, 
+            "Empfehlung (Ja/Nein)": "Nein", "Anmeldedatum": "2026-01-01", 
+            "1. Wahl": "Wohnung 2 1. OG", "2. Wahl": "Wohnung 3 1. OG", 
+            "3. Wahl": "Wohnung 4 1. OG", "4. Wahl": ""
+        },
+        {
+            "Mieter-ID": "M03", "Name": "Markus Gruber", "Personenanzahl": 1, 
+            "Empfehlung (Ja/Nein)": "Ja", "Anmeldedatum": "2026-01-05", 
+            "1. Wahl": "Wohnung 1  EG Bestand", "2. Wahl": "Wohnung 49 neu EG", 
+            "3. Wahl": "Wohnung 50 neu EG", "4. Wahl": "Wohnung 2 1. OG"
+        },
+        {
+            "Mieter-ID": "M04", "Name": "Familie Weber", "Personenanzahl": 3, 
+            "Empfehlung (Ja/Nein)": "Ja", "Anmeldedatum": "2026-01-03", 
+            "1. Wahl": "Wohnung 11 1. OG", "2. Wahl": "Wohnung 27 2. OG", 
+            "3. Wahl": "Wohnung 43 DG", "4. Wahl": "Wohnung 7 1. OG"
+        },
+        {
+            "Mieter-ID": "M05", "Name": "Julia Steiner", "Personenanzahl": 2, 
+            "Empfehlung (Ja/Nein)": "Nein", "Anmeldedatum": "2026-01-04", 
+            "1. Wahl": "Wohnung 49 neu EG", "2. Wahl": "Wohnung 50 neu EG", 
+            "3. Wahl": "Wohnung 2 1. OG", "4. Wahl": "Wohnung 3 1. OG"
+        }
+    ])
     return df_w, df_m
 
-# ---------------------------------------------------------
-# SIDEBAR: EINGABE-METHODE WÄHLEN
-# ---------------------------------------------------------
-st.sidebar.header("📁 1. Datenbasis")
-
-input_mode = st.sidebar.radio(
-    "Wie möchtest du die Daten eingeben?",
-    ["Excel-Datei hochladen", "Manuell eingeben / Bearbeiten"]
-)
-
-if input_mode == "Excel-Datei hochladen":
-    uploaded_file = st.sidebar.file_uploader("Excel-Datei hochladen (.xlsx)", type=["xlsx"])
-    if uploaded_file is not None:
-        try:
-            df_w = pd.read_excel(uploaded_file, sheet_name="Wohnungsdaten")
-            df_m = pd.read_excel(uploaded_file, sheet_name="Mieterdaten")
-            st.sidebar.success("Excel-Datei geladen!")
-        except Exception as e:
-            st.sidebar.error("Fehler beim Lesen. Beispiel-Daten geladen.")
-            df_w, df_m = get_empty_data()
-    else:
-        df_w, df_m = get_empty_data()
-
-else:  # Manuelle Eingabe im Browser
-    st.sidebar.info("Bearbeite die Tabellen im Tab '📝 Manuelle Dateneingabe'.")
-    if "df_w" not in st.session_state or "df_m" not in st.session_state:
-        st.session_state.df_w, st.session_state.df_m = get_empty_data()
-    df_w, df_m = st.session_state.df_w, st.session_state.df_m
-
-
-# ---------------------------------------------------------
-# NEUER TAB FÜR MANUELLE EINGABE (falls ausgewählt)
-# ---------------------------------------------------------
-if input_mode == "Manuell eingeben / Bearbeiten":
-    st.header("📝 Manuelle Eingabe & Bearbeitung")
-    st.caption("Füge neue Zeilen hinzu (+-Button unten in den Tabellen) oder klicke in eine Zelle, um Werte direkt zu ändern.")
-    
-    col_e1, col_e2 = st.columns(2)
-    
-    with col_e1:
-        st.subheader("🏢 Wohnungsdaten")
-        df_w = st.data_editor(
-            df_w,
-            num_rows="dynamic",  # Erlaubt das Hinzufügen/Löschen von Zeilen
-            use_container_width=True,
-            key="editor_wohnungen"
-        )
-        st.session_state.df_w = df_w
-
-    with col_e2:
-        st.subheader("👥 Mieterdaten")
-        df_m = st.data_editor(
-            df_m,
-            num_rows="dynamic",  # Erlaubt das Hinzufügen/Löschen von Zeilen
-            use_container_width=True,
-            key="editor_mieter"
-        )
-        st.session_state.df_m = df_m
-
-    st.markdown("---")
-
-
-
-# ---------------------------------------------------------
-# HILFSFUNKTIONEN & ALGORITHMUS
-# ---------------------------------------------------------
-
-def load_default_data():
-    """Erstellt Demo-Daten für Wohnungen und Mieter, falls keine Datei hochgeladen wird."""
-    wohnungen = pd.DataFrame([
-        {"Wohnungs-ID": f"W{i:02d}", "Adresse": f"Top {i:02d} - Hauptstraße", "Zimmer": (i % 4) + 1, "Max_Personen": (i % 4) + 1}
-        for i in range(1, 11)
-    ])
-    
-    mieter = pd.DataFrame([
-        {"Mieter-ID": "M01", "Name": "Anna Schmidt", "Personen": 2, "Empfehlung": "Ja", "Anmeldedatum": "2026-01-02", "Wunsch_1": "W02", "Wunsch_2": "W01", "Wunsch_3": "W03"},
-        {"Mieter-ID": "M02", "Name": "Markus Gruber", "Personen": 1, "Empfehlung": "Nein", "Anmeldedatum": "2026-01-01", "Wunsch_1": "W01", "Wunsch_2": "W02", "Wunsch_3": "W07"},
-        {"Mieter-ID": "M03", "Name": "Familie Weber", "Personen": 4, "Empfehlung": "Ja", "Anmeldedatum": "2026-01-05", "Wunsch_1": "W04", "Wunsch_2": "W05", "Wunsch_3": "W06"},
-        {"Mieter-ID": "M04", "Name": "Julia Steiner", "Personen": 1, "Empfehlung": "Ja", "Anmeldedatum": "2026-01-03", "Wunsch_1": "W01", "Wunsch_2": "W07", "Wunsch_3": "W02"},
-        {"Mieter-ID": "M05", "Name": "David Wagner", "Personen": 3, "Empfehlung": "Nein", "Anmeldedatum": "2026-01-04", "Wunsch_1": "W03", "Wunsch_2": "W04", "Wunsch_3": "W05"},
-        {"Mieter-ID": "M06", "Name": "Familie Huber", "Personen": 3, "Empfehlung": "Ja", "Anmeldedatum": "2026-01-08", "Wunsch_1": "W05", "Wunsch_2": "W04", "Wunsch_3": "W06"},
-        {"Mieter-ID": "M07", "Name": "Stefan Pichler", "Personen": 2, "Empfehlung": "Nein", "Anmeldedatum": "2026-01-06", "Wunsch_1": "W02", "Wunsch_2": "W03", "Wunsch_3": "W08"},
-        {"Mieter-ID": "M08", "Name": "Elena Berger", "Personen": 1, "Empfehlung": "Ja", "Anmeldedatum": "2026-01-07", "Wunsch_1": "W07", "Wunsch_2": "W01", "Wunsch_3": "W02"},
-        {"Mieter-ID": "M09", "Name": "Familie Hofer", "Personen": 4, "Empfehlung": "Nein", "Anmeldedatum": "2026-01-09", "Wunsch_1": "W06", "Wunsch_2": "W05", "Wunsch_3": "W04"},
-        {"Mieter-ID": "M10", "Name": "Martin Eder", "Personen": 2, "Empfehlung": "Ja", "Anmeldedatum": "2026-01-10", "Wunsch_1": "W03", "Wunsch_2": "W08", "Wunsch_3": "W02"},
-    ])
-    return wohnungen, mieter
+def clean_column_names(df, df_type="wohnungen"):
+    """Harmonisiert Spaltennamen für flexible Dateneingaben."""
+    df = df.copy()
+    col_map = {}
+    for col in df.columns:
+        c_lower = str(col).strip().lower()
+        if df_type == "wohnungen":
+            if "wohnung" in c_lower or "id" in c_lower:
+                col_map[col] = "Wohnungsnummer"
+            elif "zimmer" in c_lower:
+                col_map[col] = "Zimmer"
+            elif "max" in c_lower or "person" in c_lower:
+                col_map[col] = "Max_Personen"
+        elif df_type == "mieter":
+            if "mieter" in c_lower and "id" in c_lower:
+                col_map[col] = "Mieter-ID"
+            elif "name" in c_lower:
+                col_map[col] = "Name"
+            elif "person" in c_lower:
+                col_map[col] = "Personenanzahl"
+            elif "empfehl" in c_lower:
+                col_map[col] = "Empfehlung (Ja/Nein)"
+            elif "anmeld" in c_lower or "datum" in c_lower:
+                col_map[col] = "Anmeldedatum"
+            elif "1" in c_lower and "wahl" in c_lower:
+                col_map[col] = "1. Wahl"
+            elif "2" in c_lower and "wahl" in c_lower:
+                col_map[col] = "2. Wahl"
+            elif "3" in c_lower and "wahl" in c_lower:
+                col_map[col] = "3. Wahl"
+            elif "4" in c_lower and "wahl" in c_lower:
+                col_map[col] = "4. Wahl"
+    return df.rename(columns=col_map)
 
 def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
-    """Berechnet die verfeinerte Zuordnung von Mietern zu Wohnungen basierend auf den Gewichtungen."""
+    """Berechnet die Zuordnung von Mietern zu Wohnungen basierend auf den Szenario-Faktoren."""
+    if df_w.empty or df_m.empty:
+        return pd.DataFrame(), pd.DataFrame()
+        
+    df_w_clean = clean_column_names(df_w, "wohnungen")
+    df_m_clean = clean_column_names(df_m, "mieter")
     
-    # Anmeldedatum normalisieren
-    df_m['Anmeldedatum_dt'] = pd.to_datetime(df_m['Anmeldedatum'])
-    min_date = df_m['Anmeldedatum_dt'].min()
-    max_date = df_m['Anmeldedatum_dt'].max()
-    date_range = (max_date - min_date).days if max_date != min_date else 1
+    # Anmeldedatum parsen
+    if 'Anmeldedatum' in df_m_clean.columns:
+        df_m_clean['Anmeldedatum_dt'] = pd.to_datetime(df_m_clean['Anmeldedatum'], errors='coerce')
+    else:
+        df_m_clean['Anmeldedatum_dt'] = pd.Timestamp('2026-01-01')
+        
+    min_date = df_m_clean['Anmeldedatum_dt'].min()
+    max_date = df_m_clean['Anmeldedatum_dt'].max()
+    date_range = (max_date - min_date).days if pd.notna(max_date) and pd.notna(min_date) and max_date != min_date else 1
     
     candidates = []
     
-    # Für jede Kombination aus Mieter und dessen 3 Wunschwohnungen Punkte berechnen
-    for _, m in df_m.iterrows():
-        # Teil-Scores
-        score_empf = 100 if str(m.get('Empfehlung', '')).strip().lower() in ['ja', 'true', '1'] else 0
-        days_diff = (max_date - m['Anmeldedatum_dt']).days
-        score_anm = (days_diff / date_range) * 100
+    # Präferenzen auswerten (1. bis 4. Wahl)
+    pref_cols = [c for c in ['1. Wahl', '2. Wahl', '3. Wahl', '4. Wahl'] if c in df_m_clean.columns]
+    
+    for idx, m in df_m_clean.iterrows():
+        m_id = m.get('Mieter-ID', f"M{idx+1:02d}")
+        m_name = m.get('Name', f"Bewerber {idx+1}")
         
-        for p_rank, w_col in [(1, 'Wunsch_1'), (2, 'Wunsch_2'), (3, 'Wunsch_3')]:
-            w_id = m.get(w_col)
-            if pd.isna(w_id) or not w_id:
+        # Empfehlungs-Score
+        empf_val = str(m.get('Empfehlung (Ja/Nein)', '')).strip().lower()
+        score_empf = 100 if empf_val in ['ja', 'true', '1'] else 0
+        
+        # Anmelde-Score
+        if pd.notna(m['Anmeldedatum_dt']):
+            days_diff = (max_date - m['Anmeldedatum_dt']).days
+            score_anm = (days_diff / date_range) * 100
+        else:
+            score_anm = 50
+            
+        for rank_idx, p_col in enumerate(pref_cols, start=1):
+            w_id = m.get(p_col)
+            if pd.isna(w_id) or not str(w_id).strip():
                 continue
                 
-            w_row = df_w[df_w['Wohnungs-ID'] == w_id]
-            if w_row.empty:
-                continue
-            w_info = w_row.iloc[0]
+            w_id_str = str(w_id).strip()
             
-            # Passgenauigkeit (Optimal wenn Personenanzahl knapp unter/gleich Max_Personen)
-            max_p = w_info.get('Max_Personen', 2)
-            pers = m.get('Personen', 1)
-            diff = abs(max_p - pers)
+            # Suche nach passender Wohnung
+            w_match = df_w_clean[df_w_clean['Wohnungsnummer'].astype(str).str.strip() == w_id_str]
+            if w_match.empty:
+                continue
+            w_info = w_match.iloc[0]
+            
+            # Passform
+            max_p = w_info.get('Max_Personen', w_info.get('Zimmer', 2))
+            try:
+                pers = float(m.get('Personenanzahl', 1))
+            except (ValueError, TypeError):
+                pers = 1.0
+                
+            diff = abs(float(max_p) - pers)
             score_pass = max(0, 100 - (diff * 30))
             
-            # Prio Bonus
-            score_prio = 100 if p_rank == 1 else (60 if p_rank == 2 else 30)
+            # Prioritäts-Bonus
+            score_prio = 100 if rank_idx == 1 else (75 if rank_idx == 2 else (50 if rank_idx == 3 else 25))
             
-            # Gesamt-Score für diese Wohnung
+            # Gesamter gewichteter Score
             total_score = (
                 (score_empf * w_empf) +
                 (score_pass * w_pass) +
@@ -169,10 +172,10 @@ def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
             )
             
             candidates.append({
-                'Mieter_ID': m['Mieter-ID'],
-                'Name': m['Name'],
-                'Wohnungs_ID': w_id,
-                'Wunsch_Rang': p_rank,
+                'Mieter_ID': m_id,
+                'Name': m_name,
+                'Wohnungs_ID': w_id_str,
+                'Wunsch_Rang': rank_idx,
                 'Score': round(total_score, 1),
                 'Score_Empf': score_empf,
                 'Score_Pass': score_pass,
@@ -180,11 +183,10 @@ def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
             })
             
     df_cand = pd.DataFrame(candidates)
-    
     if df_cand.empty:
         return pd.DataFrame(), pd.DataFrame()
         
-    # Deferred Acceptance / Matching-Algorithmus
+    # Zuordnung (Deferred Acceptance / Maximum Score Matching)
     df_cand_sorted = df_cand.sort_values(by=['Score', 'Wunsch_Rang'], ascending=[False, True])
     
     assigned_tenants = set()
@@ -203,28 +205,42 @@ def calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio):
     df_matches = pd.DataFrame(matches)
     return df_matches, df_cand
 
+
 # ---------------------------------------------------------
-# DASHBOARD UI
+# SESSION STATE INITIALISIERUNG
+# ---------------------------------------------------------
+if "df_w" not in st.session_state or "df_m" not in st.session_state:
+    st.session_state.df_w, st.session_state.df_m = get_default_data()
+
+# ---------------------------------------------------------
+# GUI & LAYOUT
 # ---------------------------------------------------------
 
-st.title("🏠 Wohnungsvergabe – Szenario-Cockpit")
-st.markdown("Vergleiche verschiedene Vergabekriterien und ordne Mietern optimal ihre Wunschwohnungen zu.")
+st.title("🏠 Wohnungsvergabe – Interaktives Szenario-Cockpit")
+st.markdown("Vergleiche Kriterien, verwalte Wohnungen & Mieter und simuliere die optimale Vergabe.")
 
-# SIDEBAR: Datei & Szenario Steuerzeile
+# SIDEBAR: DATEN-QUELLE (MANUELLE EINGABE AN ERSTER STELLE)
 st.sidebar.header("📁 1. Datenbasis")
-uploaded_file = st.sidebar.file_uploader("Excel-Datei hochladen (.xlsx)", type=["xlsx"])
 
-if uploaded_file is not None:
-    try:
-        df_w = pd.read_excel(uploaded_file, sheet_name="Wohnungsdaten")
-        df_m = pd.read_excel(uploaded_file, sheet_name="Mieterdaten")
-        st.sidebar.success("Excel-Datei erfolgreich geladen!")
-    except Exception as e:
-        st.sidebar.error("Fehler beim Lesen der Sheets 'Wohnungsdaten' & 'Mieterdaten'. Beispieldaten werden geladen.")
-        df_w, df_m = load_default_data()
-else:
-    st.sidebar.info("Demo-Daten geladen. Lade deine Excel hoch, um eigene Daten zu nutzen.")
-    df_w, df_m = load_default_data()
+input_mode = st.sidebar.radio(
+    "Datenquelle wählen:",
+    ["Manuell eingeben / In der App bearbeiten", "Excel-Datei hochladen"],
+    index=0  # Manuelle Eingabe als Standard
+)
+
+if input_mode == "Excel-Datei hochladen":
+    uploaded_file = st.sidebar.file_uploader(
+        "Excel-Datei hochladen (.xlsx)", 
+        type=["xlsx"], 
+        key="excel_uploader_sidebar"  # Eindeutiger Key zur Fehlerbehebung
+    )
+    if uploaded_file is not None:
+        try:
+            st.session_state.df_w = pd.read_excel(uploaded_file, sheet_name="Wohnungsdaten")
+            st.session_state.df_m = pd.read_excel(uploaded_file, sheet_name="Mieterdaten")
+            st.sidebar.success("Excel-Datei erfolgreich geladen!")
+        except Exception as e:
+            st.sidebar.error("Fehler beim Lesen der Sheets 'Wohnungsdaten' & 'Mieterdaten'.")
 
 st.sidebar.markdown("---")
 st.sidebar.header("⚙️ 2. Szenario-Gewichtung")
@@ -234,14 +250,13 @@ szenario_preset = st.sidebar.selectbox(
     ["Ausgewogen (Standard)", "Sozial & Bevorzugt", "Fairness / Schnelligkeit", "Maximale Auslastung", "Individuell"]
 )
 
-# Standard-Gewichtungen je nach Preset
 if szenario_preset == "Sozial & Bevorzugt":
     w_e, w_p, w_a, w_r = 0.50, 0.20, 0.10, 0.20
 elif szenario_preset == "Fairness / Schnelligkeit":
     w_e, w_p, w_a, w_r = 0.00, 0.20, 0.60, 0.20
 elif szenario_preset == "Maximale Auslastung":
     w_e, w_p, w_a, w_r = 0.10, 0.60, 0.10, 0.20
-else:  # Ausgewogen / Individuell
+else:
     w_e, w_p, w_a, w_r = 0.35, 0.30, 0.20, 0.15
 
 st.sidebar.markdown("**Gewichtung der Kriterien (0.0 bis 1.0):**")
@@ -250,46 +265,54 @@ w_pass = st.sidebar.slider("2. Passgenauigkeit (Belegung)", 0.0, 1.0, w_p, 0.05)
 w_anm = st.sidebar.slider("3. Frühe Anmeldung", 0.0, 1.0, w_a, 0.05)
 w_prio = st.sidebar.slider("4. Erstwunsch-Bonus", 0.0, 1.0, w_r, 0.05)
 
-# Normalisierung der Gewichtungen auf Summe = 1
+# Normalisieren
 total_w = w_empf + w_pass + w_anm + w_prio
 if total_w > 0:
     w_empf, w_pass, w_anm, w_prio = w_empf/total_w, w_pass/total_w, w_anm/total_w, w_prio/total_w
 
-# Berechne Matching
-df_matches, df_cand = calculate_matching(df_w, df_m, w_empf, w_pass, w_anm, w_prio)
+# BERECHNUNG MIT AKTUELLEN SESSION-DATEN
+df_w_active = st.session_state.df_w
+df_m_active = st.session_state.df_m
 
-# KPI SPALTE OBEN
+df_matches, df_cand = calculate_matching(df_w_active, df_m_active, w_empf, w_pass, w_anm, w_prio)
+
+# KPI SPALTE
 col_kpi1, col_kpi2, col_kpi3, col_kpi4 = st.columns(4)
-col_kpi1.metric("Anzahl Wohnungen", len(df_w))
-col_kpi2.metric("Anzahl Bewerber", len(df_m))
+col_kpi1.metric("Anzahl Wohnungen", len(df_w_active))
+col_kpi2.metric("Anzahl Bewerber", len(df_m_active))
 col_kpi3.metric("Vergebene Wohnungen", len(df_matches))
-col_kpi4.metric("Offene Bewerber", len(df_m) - len(df_matches))
+col_kpi4.metric("Offene Bewerber", max(0, len(df_m_active) - len(df_matches)))
 
 st.markdown("---")
 
-# TABS FÜR UNTERSCHIEDLICHE ANSICHTEN
-tab1, tab2, tab3 = st.tabs(["🏢 Wohnungs-Liste (Hauptansicht)", "📊 Szenario-Vergleich", "📄 Mieter-Gesamtübersicht"])
+# TABS FÜR ANSICHTEN
+tab1, tab2, tab3, tab4 = st.tabs([
+    "🏢 Wohnungs-Liste (Hauptansicht)", 
+    "📝 Dateneingabe / Bearbeiten", 
+    "📊 Szenario-Vergleich", 
+    "📄 Mieter-Gesamtübersicht & Export"
+])
 
 # ---------------------------------------------------------
-# TAB 1: LISTE ALLER WOHNUNGEN MIT MIETERN
+# TAB 1: HAUPTANSICHT
 # ---------------------------------------------------------
 with tab1:
     st.subheader(f"Ergebnis-Übersicht für Szenario: '{szenario_preset}'")
     st.caption("Hier siehst du jede Wohnung, wer sie erhalten hat und welche Alternativen es gab.")
     
-    search_term = st.text_input("🔍 Wohnung suchen (nach ID oder Adresse):", "")
+    search_term = st.text_input("🔍 Wohnung suchen (nach ID / Name):", "")
     
-    for _, w in df_w.iterrows():
-        w_id = w['Wohnungs-ID']
-        w_adresse = w.get('Adresse', f'Wohnung {w_id}')
+    df_w_clean = clean_column_names(df_w_active, "wohnungen")
+    
+    for _, w in df_w_clean.iterrows():
+        w_id = str(w.get('Wohnungsnummer', 'Unbekannt')).strip()
         
-        if search_term and (search_term.lower() not in w_id.lower() and search_term.lower() not in w_adresse.lower()):
+        if search_term and search_term.lower() not in w_id.lower():
             continue
             
-        # Match für diese Wohnung
         match_info = df_matches[df_matches['Wohnungs_ID'] == w_id] if not df_matches.empty else pd.DataFrame()
         
-        with st.expander(f"🏠 **{w_id}** – {w_adresse} (Zimmer: {w.get('Zimmer', '-')}, Max. Pers: {w.get('Max_Personen', '-')})", expanded=True):
+        with st.expander(f"🏠 **{w_id}** (Zimmer: {w.get('Zimmer', '-')})", expanded=True):
             if not match_info.empty:
                 m_curr = match_info.iloc[0]
                 col_m1, col_m2, col_m3, col_m4 = st.columns([3, 2, 2, 2])
@@ -300,7 +323,6 @@ with tab1:
             else:
                 st.warning("⚠️ **Status:** Noch keine Vergabe / Keine passenden Interessenten.")
             
-            # Zeige weitere Interessenten für diese Wohnung
             if not df_cand.empty:
                 other_cands = df_cand[df_cand['Wohnungs_ID'] == w_id].sort_values(by='Score', ascending=False)
                 if len(other_cands) > 1:
@@ -318,11 +340,39 @@ with tab1:
                     )
 
 # ---------------------------------------------------------
-# TAB 2: SZENARIO-VERGLEICH
+# TAB 2: DATENEINGABE / BEARBEITEN
 # ---------------------------------------------------------
 with tab2:
-    st.subheader("🔄 Szenario-Vergleich (Veränderungen analysieren)")
-    st.markdown("Vergleiche das aktuell eingestellte Szenario mit einem alternativen Szenario, um zu sehen, welche Mieter die Wohnung wechseln.")
+    st.subheader("📝 Daten direkt in der App bearbeiten")
+    st.caption("Ändere Werte direkt in den Zellen oder füge unten über das '+'-Symbol neue Reihen hinzu.")
+    
+    col_e1, col_e2 = st.columns(2)
+    
+    with col_e1:
+        st.markdown("### 🏢 Wohnungsdaten")
+        edited_w = st.data_editor(
+            st.session_state.df_w,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="editor_wohnungsdaten"
+        )
+        st.session_state.df_w = edited_w
+
+    with col_e2:
+        st.markdown("### 👥 Mieterdaten")
+        edited_m = st.data_editor(
+            st.session_state.df_m,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="editor_mieterdaten"
+        )
+        st.session_state.df_m = edited_m
+
+# ---------------------------------------------------------
+# TAB 3: SZENARIO-VERGLEICH
+# ---------------------------------------------------------
+with tab3:
+    st.subheader("🔄 Szenario-Vergleich (Gegenüberstellung)")
     
     col_s1, col_s2 = st.columns(2)
     with col_s1:
@@ -330,7 +380,6 @@ with tab2:
     with col_s2:
         szenario_b = st.selectbox("Wähle Szenario B zum Vergleich:", ["Fairness / Schnelligkeit", "Sozial & Bevorzugt", "Maximale Auslastung"])
         
-    # Berechne Szenario B
     if szenario_b == "Sozial & Bevorzugt":
         wb_e, wb_p, wb_a, wb_r = 0.50, 0.20, 0.10, 0.20
     elif szenario_b == "Fairness / Schnelligkeit":
@@ -338,12 +387,13 @@ with tab2:
     else:
         wb_e, wb_p, wb_a, wb_r = 0.10, 0.60, 0.10, 0.20
         
-    df_matches_b, _ = calculate_matching(df_w, df_m, wb_e, wb_p, wb_a, wb_r)
+    df_matches_b, _ = calculate_matching(df_w_active, df_m_active, wb_e, wb_p, wb_a, wb_r)
     
-    # Tabelle zusammenstellen
     comparison = []
-    for _, w in df_w.iterrows():
-        w_id = w['Wohnungs-ID']
+    df_w_clean = clean_column_names(df_w_active, "wohnungen")
+    
+    for _, w in df_w_clean.iterrows():
+        w_id = str(w.get('Wohnungsnummer', 'Unbekannt')).strip()
         mA = df_matches[df_matches['Wohnungs_ID'] == w_id]['Name'].values if not df_matches.empty else []
         mB = df_matches_b[df_matches_b['Wohnungs_ID'] == w_id]['Name'].values if not df_matches_b.empty else []
         
@@ -352,7 +402,6 @@ with tab2:
         
         comparison.append({
             "Wohnung": w_id,
-            "Adresse": w.get('Adresse', ''),
             f"Mieter in Szenario A ({szenario_preset})": nameA,
             f"Mieter in Szenario B ({szenario_b})": nameB,
             "Veränderung": "🔴 Abweichend" if nameA != nameB else "🟢 Identisch"
@@ -362,23 +411,31 @@ with tab2:
     st.dataframe(df_comp, use_container_width=True, hide_index=True)
 
 # ---------------------------------------------------------
-# TAB 3: MIETER GESAMTÜBERSICHT & EXPORT
+# TAB 4: GESAMTÜBERSICHT & EXPORT
 # ---------------------------------------------------------
-with tab3:
-    st.subheader("📄 Vollständige Vergabe-Liste")
+with tab4:
+    st.subheader("📄 Vollständige Vergabe-Liste & Export")
+    
+    df_m_clean = clean_column_names(df_m_active, "mieter")
     
     if not df_matches.empty:
-        # Merge mit Mieterdaten
-        full_overview = pd.merge(df_m, df_matches[['Mieter_ID', 'Wohnungs_ID', 'Wunsch_Rang', 'Score']], left_on='Mieter-ID', right_on='Mieter_ID', how='left')
+        full_overview = pd.merge(
+            df_m_clean, 
+            df_matches[['Mieter_ID', 'Wohnungs_ID', 'Wunsch_Rang', 'Score']], 
+            left_on='Mieter-ID', 
+            right_on='Mieter_ID', 
+            how='left'
+        )
         full_overview['Status'] = full_overview['Wohnungs_ID'].apply(lambda x: "Zugewiesen" if pd.notna(x) else "Warteliste")
         
+        display_cols = [c for c in ['Mieter-ID', 'Name', 'Status', 'Wohnungs_ID', 'Wunsch_Rang', 'Score', 'Empfehlung (Ja/Nein)', 'Anmeldedatum'] if c in full_overview.columns]
+        
         st.dataframe(
-            full_overview[['Mieter-ID', 'Name', 'Status', 'Wohnungs_ID', 'Wunsch_Rang', 'Score', 'Empfehlung', 'Anmeldedatum']],
+            full_overview[display_cols],
             use_container_width=True,
             hide_index=True
         )
         
-        # EXCEL DOWNLOAD
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             full_overview.to_excel(writer, sheet_name='Vergabe_Ergebnis', index=False)
@@ -390,3 +447,5 @@ with tab3:
             file_name=f"Wohnungsvergabe_Ergebnis_{szenario_preset}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+    else:
+        st.info("Keine aktiven Zuweisungen berechnet.")
